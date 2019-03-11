@@ -1,0 +1,6 @@
+github.com/wojnosystems/go_reopen v1.0.0 h1:spkZBGmrzqc8wFWfX6nROLkw+LveaTY4MnV7VkGiWo0=
+github.com/wojnosystems/go_reopen v1.0.0/go.mod h1:JFTSkCz6xdcABCmZkAaGLbJVSbs5M0/l1bYY676XOVc=
+github.com/wojnosystems/go_routine v1.0.0 h1:uMtxkrEzv7r581hoPzDsGfN/T9MBtG01SA9dwClkvww=
+github.com/wojnosystems/go_routine v1.0.0/go.mod h1:Q1QGNUXrCJ8qhfsB52lZL4WvTPI7CvoRLDxWjSxZ+GE=
+github.com/wojnosystems/go_snitch v1.0.0 h1:e7qiUWvigFT/bd3xjEb5hNImWMOjeOyxdlwBQ1u5L5E=
+github.com/wojnosystems/go_snitch v1.0.0/go.mod h1:LGfPGUb33RG9W6yH2ukOol96SZj3flDBJTzmaMw1lVo=
