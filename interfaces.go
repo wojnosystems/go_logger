@@ -5,6 +5,12 @@ import (
 	"io"
 )
 
+// Msg interface defines the generic log message type
+// These are the bare minimum methods to implement so
+// that the log message can be JSON marshaled to the log file
+type Msg interface {
+}
+
 // ServiceLogger is a logger that can be used with a
 // service, where delays writing to log files is not
 // acceptable and the log entry needs to be written

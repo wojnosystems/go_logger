@@ -32,7 +32,7 @@ func TestService_Log(t *testing.T) {
 	sl := newService(snitcherFile, "test-service", time.RFC3339Nano, "\n", 10, defaultNowFactory)
 	sl.loggerRoutine = defaultLoggerAgent(sl)
 
-	sl.Log("ERROR", NewMsg(`log message`), 0)
+	sl.Log("ERROR", NewBase(`log message`), 0)
 
 	// wait for the write
 	<-writeChan
@@ -72,7 +72,7 @@ func TestService_Log(t *testing.T) {
 	}
 
 	// Log something else
-	sl.Log("ERROR", NewMsg(`new file started`), 0)
+	sl.Log("ERROR", NewBase(`new file started`), 0)
 
 	// wait for the writer
 	<-writeChan

@@ -2,12 +2,6 @@ package go_logger
 
 import "encoding/json"
 
-// Msg interface defines the generic log message type
-// These are the bare minimum methods to implement so
-// that the log message can be JSON marshaled to the log file
-type Msg interface {
-}
-
 // Base log supports msg and data fields. This is an
 // easy way to bootstrap the log message or extend it
 // for other purposes. This supports setting a specific
@@ -26,10 +20,10 @@ type baseExport struct {
 	Data map[string]interface{} `json:"data"`
 }
 
-// NewMsg creates a new logger.Base object initialized with
+// NewBase creates a new logger.Base object initialized with
 // a msg and with a user-data map ready for use.
 // @param msg the message for this log. You can localize this if you wish
-func NewMsg(msg string) Msg {
+func NewBase(msg string) *Base {
 	return &Base{
 		msg:  msg,
 		data: make(map[string]interface{}),
@@ -64,6 +58,9 @@ func (b Base) MarshalJSON() (d []byte, err error) {
 	return json.Marshal(be)
 }
 
+// msgFull is the actual message object written to the logs.
+// This includes everything required to log the messages properly
+// with enough context to be useful
 type msgFull struct {
 	Msg
 	Name     string `json:"name"`
