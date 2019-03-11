@@ -4,9 +4,8 @@ import "encoding/json"
 
 // Msg interface defines the generic log message type
 // These are the bare minimum methods to implement so
-// that the log message can be marshaled to the log file
+// that the log message can be JSON marshaled to the log file
 type Msg interface {
-	json.Marshaler
 }
 
 // Base log supports msg and data fields. This is an
