@@ -11,11 +11,13 @@ import (
 	"time"
 )
 
-type service struct {
+// ServiceAgent is an exported structure to facilitate extension and re-use.
+// To create, call NewServiceAgent. Do not instantiate yourself.
+type ServiceAgent struct {
 	// file, where we write logs to
 	file reopen.WriteCloser
 
-	// name is what's used when identifying this service in
+	// name is what's used when identifying this ServiceAgent in
 	// the Log file (in cause multiple systems Log to the
 	// same file or you want to aggregate logs later)
 	name string
@@ -46,17 +48,17 @@ type service struct {
 	reOpenChan chan bool
 
 	// newFactory generates the current time
-	nowFactory func() time.Time
+	timeNowFactory func() time.Time
 }
 
-// newService creates a service for testing
+// newService creates a ServiceAgent for testing
 func newService(f reopen.WriteCloser,
 	name,
 	timeFormat,
 	recordSeparator string,
 	maxOutstandingLogMessages int,
-	nowFactory func() time.Time) *service {
-	return &service{
+	timeNowFactory func() time.Time) *ServiceAgent {
+	return &ServiceAgent{
 		file:            f,
 		name:            name,
 		timeFormat:      timeFormat,
@@ -66,54 +68,67 @@ func newService(f reopen.WriteCloser,
 				return new(bytes.Buffer)
 			},
 		},
-		logMessages: make(chan *bytes.Buffer, maxOutstandingLogMessages),
-		reOpenChan:  make(chan bool, 1),
-		nowFactory:  nowFactory,
+		logMessages:    make(chan *bytes.Buffer, maxOutstandingLogMessages),
+		reOpenChan:     make(chan bool, 1),
+		timeNowFactory: timeNowFactory,
 	}
 }
 
-// defaultLoggerAgent is the default guts of the logging agent routine
-// this allows it to be swapped out for testing
-var defaultLoggerAgent = func(s *service) routine.StopJoiner {
-	return routine.Go(func(stop <-chan bool) error {
-		for {
-			select {
-			case <-stop:
-				return nil
-			case <-s.reOpenChan:
-				err := s.file.ReOpen()
-				if err != nil {
-					return err
-				}
-			case lm := <-s.logMessages:
-				_, err := s.file.Write(lm.Bytes())
-				if err != nil {
-					log.Printf(`unable to write to Log for service: "%s" got error: "%v"`, s.name, err)
-				}
-				// put the buffer back into the pool
-				lm.Reset()
-				s.logBuffers.Put(lm)
-			}
-		}
-	})
-}
-
-// Service creates a new logger intended for use with services
+// NewServiceAgent creates a new logger intended for use with services
+//
 // @param f the file to use to write logs into
-// @param name the name of this service. This will be included in every message as the `name` field
-// @param timeFormat is the format that will be written to the logs. This is when the log was generated See "time" package for a list of valid formats
-// @param recordSeparator is appended to each log message. This is usually a new-line
-// @param maxOutstandingLogMessage is the number of buffers (not the size of the buffers) to allocate to the channel. Once this many items is in the channel buffer, log messages will block. Ensure that this value is large enough to prevent any blocking. If your routines will produce, at max, 4 log messages, and you cap the number of routines to 10,000, this can be set to 40,000 and operate safely in most circumstances.
-// @param nowFactory is a function that generates the current time. This is provided so you can localize time, if you so desire
-// @return a service logger ready for log messages
-func Service(f reopen.WriteCloser,
+// @param name the name of this ServiceAgent. This will be included
+//   in every message as the `name` field
+// @param timeFormat is the format that will be written to the logs.
+//   This is when the log was generated See "time" package for a list
+//   of valid formats
+// @param recordSeparator is appended to each log message. This is
+//   usually a new-line
+// @param maxOutstandingLogMessage is the number of buffers (not the
+//   size of the buffers) to allocate to the channel. Once this many
+//   items is in the channel buffer, log messages will block. Ensure
+//   that this value is large enough to prevent any blocking. If your
+//   routines will produce, at max, 4 log messages, and you cap the
+//   number of routines to 10,000, this can be set to 40,000 and
+//   operate safely in most circumstances.
+// @param timeNowFactory is a function that generates the current time.
+//   This is provided so you can localize time, if you so desire
+// @param agentFactory allows implementers to complete swap out how
+//   the logging agent works, if desired.
+// @return a ServiceAgent logger ready for log messages
+func NewServiceAgent(f reopen.WriteCloser,
 	name,
 	timeFormat,
 	recordSeparator string,
 	maxOutstandingLogMessages int,
 	nowFactory func() time.Time) ServiceLogger {
 	s := newService(f, name, timeFormat, recordSeparator, maxOutstandingLogMessages, nowFactory)
-	s.loggerRoutine = defaultLoggerAgent(s)
+	s.loggerRoutine = routine.Go(func(stop <-chan bool) (err error) {
+		for {
+			select {
+			// Log rotation has top priority
+			case <-s.reOpenChan:
+				err := s.file.ReOpen()
+				if err != nil {
+					return err
+				}
+
+			// Log all messages before closing
+			case lm := <-s.logMessages:
+				_, err := s.file.Write(lm.Bytes())
+				if err != nil {
+					log.Printf(`unable to write to Log for ServiceAgent: "%s" got error: "%v"`, s.name, err)
+				}
+				// put the buffer back into the pool
+				lm.Reset()
+				s.logBuffers.Put(lm)
+
+			// stop indicates that this routine needs to stop
+			case <-stop:
+				return
+			}
+		}
+	})
 	return s
 }
 
@@ -128,8 +143,19 @@ var defaultNowFactory = func() time.Time {
 	return time.Now().UTC()
 }
 
-func ServiceDefaults(f reopen.WriteCloser, name string, maxOutstandingLogMessages int) ServiceLogger {
-	return Service(f, name, defaultTimeFormat, defaultRecordSeparator, maxOutstandingLogMessages, defaultNowFactory)
+// NewServiceAgentDefaults creates a ServiceAgent with some sensible defaults
+// defaultTimeFormat: time.RFC3339Nano
+// defaultRecordSeparator: "\n"
+// defaultNowFactory: time.Now().UTC()
+func NewServiceAgentDefaults(f reopen.WriteCloser,
+	name string,
+	maxOutstandingLogMessages int) ServiceLogger {
+	return NewServiceAgent(f,
+		name,
+		defaultTimeFormat,
+		defaultRecordSeparator,
+		maxOutstandingLogMessages,
+		nil)
 }
 
 // Log creates a log entry and submits it to the log writing routine
@@ -144,15 +170,20 @@ func ServiceDefaults(f reopen.WriteCloser, name string, maxOutstandingLogMessage
 //   should pass in zero (0) if you're calling Log directly.
 //   If Log is inside another function, pass in 1 to whatever
 //   depth is needed. See runtime.Caller for more information
-func (s *service) Log(tag string, m Msg, skip int) {
+func (s *ServiceAgent) Log(tag string, m Msg, skip int) {
+	nowFactory := s.timeNowFactory
+	if nowFactory == nil {
+		// if no factory set, use the default
+		nowFactory = defaultNowFactory
+	}
 	fl := msgFull{
 		Msg:  m,
 		Name: s.name,
-		Time: s.nowFactory().Format(s.timeFormat),
+		Time: nowFactory().Format(s.timeFormat),
 		Tag:  tag,
 	}
 
-	_, fl.FilePath, fl.Line, _ = runtime.Caller(skip + 1)
+	_, fl.FilePath, fl.Line, _ = runtime.Caller(1 + skip)
 
 	buf := s.logBuffers.Get().(*bytes.Buffer)
 	enc := json.NewEncoder(buf)
@@ -172,20 +203,35 @@ func (s *service) Log(tag string, m Msg, skip int) {
 
 // ReOpen causes the log file to be closed and reopened
 // @return nil, always.
-func (s *service) ReOpen() error {
+func (s *ServiceAgent) ReOpen() error {
 	s.reOpenChan <- true
 	return nil
 }
 
 // Close shuts down the logging agent go-routine and closes the file
 // @return err the first error encountered in the logger agent routine
-func (s *service) Close() (err error) {
+func (s *ServiceAgent) Close() (err error) {
 	err = s.stopAndJoinError()
 	_ = s.file.Close()
 	return
 }
 
 // stopAndJoinError stops the logging agent go-routine and returns any errors
-func (s *service) stopAndJoinError() (err error) {
+func (s *ServiceAgent) stopAndJoinError() (err error) {
 	return s.loggerRoutine.StopAndJoinError()
+}
+
+// Name returns the service agent's name. This is the value of the "name" field in the log messages
+func (s *ServiceAgent) Name() string {
+	return s.name
+}
+
+// TimeFormat returns the currently configured time format, for reference
+func (s *ServiceAgent) TimeFormat() string {
+	return s.timeFormat
+}
+
+// RecordSeparator returns the currently configured record separator, for reference
+func (s *ServiceAgent) RecordSeparator() string {
+	return s.recordSeparator
 }

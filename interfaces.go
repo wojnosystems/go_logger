@@ -12,7 +12,7 @@ type Msg interface {
 }
 
 // ServiceLogger is a logger that can be used with a
-// service, where delays writing to log files is not
+// ServiceAgent, where delays writing to log files is not
 // acceptable and the log entry needs to be written
 // out of band
 type ServiceLogger interface {

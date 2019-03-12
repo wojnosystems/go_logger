@@ -29,8 +29,7 @@ func TestService_Log(t *testing.T) {
 	}, nil, func() {
 		reOpenChan <- true
 	})
-	sl := newService(snitcherFile, "test-service", time.RFC3339Nano, "\n", 10, defaultNowFactory)
-	sl.loggerRoutine = defaultLoggerAgent(sl)
+	sl := NewServiceAgent(snitcherFile, "test-ServiceAgent", time.RFC3339Nano, "\n", 10, defaultNowFactory)
 
 	sl.Log("ERROR", NewBase(`log message`), 0)
 
