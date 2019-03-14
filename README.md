@@ -39,6 +39,24 @@ func main() {
 }
 ```
 
+# Operation
+
+When a NewServiceAgent is created, a go-routine is spawned that will perform all of the log writes and file re-opens. Calls to "Log" are guaranteed to never block and thus, writing logs will be fast. Writing to the underlying go_reopen.WriterCloser is always done asynchronously to the caller of Log.
+
+Log messages are sent via a channel to the writer agent. This is called the Backlog (more on this later).
+
+## Custom Messages
+
+There is an interface-type that allows you to specify your own log messages. All log messages are converted to JSON before being written to the log stream.
+
+## Custom Serializer
+
+You can override the serialization strategy (json by default) by specifying a serializationFactory. This method should return an encoder that writes to the provided writer when passed the underlying Serializer object. The serializer type allows implementers to add in custom state to the serializer, if desired.
+
+# The Backlog
+
+Because I'm using channels to communicate with an arbitrary and unknowable number of go-routines with the primary log agent routine, it's possible for this channel to over flow. Because I intend this library to be used in services, rather than blocking, which would be hazardous to a large system, the logger instead lets 1 more message through on a separate channel. The message is a combined message that includes the actual log message as well as a shorter message indicating that the log has overflowed. This is intended to allow ops teams to know when resources are starting to impact visibility.
+
 # Copyright
 
 Copyright © 2019 Chris Wojno. All rights reserved.

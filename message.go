@@ -23,13 +23,8 @@ func NewBase(msg string) *Base {
 func (b *Base) SetMsg(m string) {
 	b.Msg = m
 }
-
 func (b *Base) SetData(key string, value interface{}) {
 	b.Data[key] = value
-}
-func (b *Base) StreamData(key string, value interface{}) *Base {
-	b.SetData(key, value)
-	return b
 }
 func (b *Base) DeleteData(key string) {
 	delete(b.Data, key)
