@@ -20,12 +20,17 @@ func NewBase(msg string) *Base {
 	}
 }
 
+// SetMsg changes the Msg field
 func (b *Base) SetMsg(m string) {
 	b.Msg = m
 }
+
+// SetData adds/overwrites a key and value to the data field
 func (b *Base) SetData(key string, value interface{}) {
 	b.Data[key] = value
 }
+
+// DeleteData removes a key-value from the data field
 func (b *Base) DeleteData(key string) {
 	delete(b.Data, key)
 }

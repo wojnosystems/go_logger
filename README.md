@@ -2,6 +2,8 @@
 
 go_logger is a service log that spawns an agent go-routine to write and manage the log file. This is intended to be used in web or other services that cannot block waiting for logging I/O. Logs can be a file or can be network/remote. The object simply needs to conform to io.Writer and my ReOpener interfaces.
 
+In the event a message cannot be written, it falls back to Go's default log.* package logger. It will be very noisy in the event of a failure.
+
 # Example
 
 ```go
@@ -28,7 +30,9 @@ func main() {
 	// log write that occurs after this line will appear in the 
 	// old log and not the new log
 	
-	log.Log("INFO", go_logger.NewBase(`this is a message with extra data`).StreamData("extra_data", "my data. Accepts interface{}, so you can pass whatever you want into this"), 0)
+	msg := go_logger.NewBase(`this is a message with extra data`)
+	msg.SetData("extra_data", "my data. Accepts interface{}, so you can pass whatever you want into this" )
+	log.Log("INFO", msg, 0)
 	
 	// Shutdown the logger. This will wait for the logs to finish writing
 	err = log.Close()

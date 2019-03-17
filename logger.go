@@ -52,7 +52,7 @@ type ServiceAgent struct {
 	// that it needs to close and re-open the Log file.
 	reOpenChan chan bool
 
-	// newFactory generates the current time
+	// timeNowFactory generates the current time
 	timeNowFactory func() time.Time
 
 	// logOverflowChan is a smaller channel that is prioritized
@@ -102,11 +102,11 @@ func newService(f go_reopen.WriteCloser,
 //   usually a new-line
 // @param maxOutstandingLogMessage is the number of buffers (not the
 //   size of the buffers) to allocate to the channel. Once this many
-//   items is in the channel buffer, log messages will block. Ensure
-//   that this value is large enough to prevent any blocking. If your
+//   items is in the channel buffer, log messages will drop. If your
 //   routines will produce, at max, 4 log messages, and you cap the
 //   number of routines to 10,000, this can be set to 40,000 and
-//   operate safely in most circumstances.
+//   operate safely in most circumstances. If this value is exceeded,
+//   you'll see log messages with tag: "ERROR_BACKLOG_FULL"
 // @param timeNowFactory is a function that generates the current time.
 //   This is provided so you can localize time, if you so desire
 // @param serializerFactory override the log message format. if set to nil
@@ -221,11 +221,14 @@ func (s *ServiceAgent) Log(tag string, m Msg, skip int) {
 		Tag:  tag,
 	}
 
+	// Get the backtrace to the caller of Log. Use skip in case the calls are nested
 	_, fl.FilePath, fl.Line, _ = runtime.Caller(1 + skip)
 
+	// Get/create a new buffer for messages
 	buf := s.logBuffers.Get().(*bytes.Buffer)
 	buf.Reset()
 
+	// Take the Msg objects and serialize them
 	var enc Serializer
 	if s.serializerFactory != nil {
 		enc = s.serializerFactory(buf)
@@ -243,6 +246,8 @@ func (s *ServiceAgent) Log(tag string, m Msg, skip int) {
 
 	buf.WriteString(s.recordSeparator)
 
+	// Try to send messages. NEVER block. Always fallback to the default log handler if messages fail to send
+	// Be noisy on failure
 	select {
 	case s.logMessages <- buf:
 		// Log message sent, all is well
