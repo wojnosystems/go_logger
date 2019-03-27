@@ -7,7 +7,7 @@ package go_logger
 // data from the log writer.
 type Base struct {
 	Msg  string                 `json:"msg"`
-	Data map[string]interface{} `json:"data"`
+	Data map[string]interface{} `json:"data,omitempty"`
 }
 
 // NewBase creates a new logger.Base object initialized with
@@ -40,9 +40,8 @@ func (b *Base) DeleteData(key string) {
 // with enough context to be useful
 type msgFull struct {
 	Msg
-	Name     string `json:"name"`
-	Tag      string `json:"lvl"`
-	Time     string `json:"ts"`
-	FilePath string `json:"srcf"`
-	Line     int    `json:"srcl"`
+	Name     string `json:"n,omitempty"`
+	Tag      string `json:"l,omitempty"`
+	Time     string `json:"ts,omitempty"`
+	FileLine string `json:"src,omitempty"`
 }

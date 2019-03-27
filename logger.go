@@ -7,7 +7,9 @@ import (
 	"github.com/wojnosystems/go_routine"
 	"io"
 	"log"
+	"net"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -222,7 +224,11 @@ func (s *ServiceAgent) Log(tag string, m Msg, skip int) {
 	}
 
 	// Get the backtrace to the caller of Log. Use skip in case the calls are nested
-	_, fl.FilePath, fl.Line, _ = runtime.Caller(1 + skip)
+	_, filePath, line, ok := runtime.Caller(1 + skip)
+	if ok {
+		// no error, got a file and line number
+		fl.FileLine = net.JoinHostPort(filePath, strconv.Itoa(line))
+	}
 
 	// Get/create a new buffer for messages
 	buf := s.logBuffers.Get().(*bytes.Buffer)
