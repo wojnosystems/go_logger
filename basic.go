@@ -8,13 +8,13 @@ import (
 // Basic is a logger that allows you to set go's logger
 // Println will be used for logging values
 type Basic struct {
-	l log.Logger
+	l *log.Logger
 }
 
 // NewBasic creates a logger fashioned from Go's default logging apparatus
 // This allows you to use the new logging interface, but use the default logger instead of a file
 // This is very useful for just outputting log entries while manually testing
-func NewBasic(l log.Logger) *Basic {
+func NewBasic(l *log.Logger) *Basic {
 	return &Basic{
 		l: l,
 	}
